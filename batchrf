@@ -1,0 +1,294 @@
+#!/bin/sh
+#
+# Пакетное переименование файлов
+# Batch rename files
+# version: 1.0.0 
+#
+# RENAME(){
+# 		DIRNAME1 		Каталог с файлами
+# 		NEWNAME 		Новый префикс
+# 		CURRENTNAME		Текущий префикс
+# 		NUMBER			Нумерация файлов от
+# 		FOLDER			Путь сохранения
+# }
+# export -f RENAME
+# 
+# REPLACE(){
+#		DIRNAME2 		Каталог с файлами
+# 		F1				Найти (что заменить)
+# 		R1				Заменить (на что заменить)
+#		H1				Удалить специальные символы и знаки
+#		S1				Исключить пробелы (склейка)				
+# 		P1				Заменить пробелы на 0x5F (hex)
+# 		P2				Нижний регистр в расширении файла
+# 		P3				Нижний регистр в имени файла
+#		T1				Транслит
+# }
+# export -f REPLACE
+#
+
+RENAME(){	
+	if [ -z "$DIRNAME1" ]; then
+		Xdialog --title " " --msgbox "$(gettext 'Не указан каталог с файлами!')" 0 0  
+		exit 1
+	fi 		
+	if [ -z "$NEWNAME" ]; then
+		Xdialog --title " " --msgbox "$(gettext 'Не указан новый префикс!')" 0 0  
+		exit 1
+	fi 
+	if [ "$NUMBER" == "" ]; then NUMBER=1000; fi		
+	if [ "$FOLDER" != "" ]; then mkdir "$FOLDER"/"$NEWNAME"; fi
+
+i=$NUMBER
+cd "$DIRNAME1"
+ls "$DIRNAME1" | while read x
+do
+	if [ -f "$x" ]; then
+		if [ "$CURRENTNAME" != "" ]; then 
+					nname=`echo $x | sed -e s/"$CURRENTNAME"/"$NEWNAME"/g`
+					nname=`echo ${nname%.*}`
+			else 	nname="$NEWNAME$i"
+		fi
+		if [ -z "$FOLDER" ]; then 
+				if ! [ -f "$nname".`echo ${x##*.}` ]; then
+					mv "$x" "$nname".`echo ${x##*.}`
+				fi
+			else 	cp "$x" "$FOLDER/$NEWNAME/$nname".`echo ${x##*.}`
+		fi
+		i=$(($i+1))
+	fi
+done
+}
+export -f RENAME
+
+REPLACE(){	
+	if [ -z "$DIRNAME2" ]; then
+		Xdialog --title " " --msgbox "$(gettext 'Не указан каталог с файлами!')" 0 0  
+		exit 1
+	fi 	
+	if [ -z "$F1" ]; then F1=""; fi
+	if [ -z "$R1" ]; then R1="" ;fi
+		
+FROM="ABCDEFGHIJKLMNOPQRSTUVWXYZАБВГДЕЗИЙКЛМНОПРСТУФХЦЫ"			
+TOOO="abcdefghijklmnopqrstuvwxyzабвгдезийклмнопрстуфхцы"	
+cd "$DIRNAME2"
+ls "$DIRNAME2" | while read x
+do
+	nname=`echo ${x%.*}`
+	ext=`echo ${x##*.}`
+	if [ -f "$x" ]; then
+		if [[ -n "$F1" && -n "$R1" ]]; then
+			nname=`echo $nname | sed -e s/"$F1"/"$R1"/g`
+		fi
+		if [[ -n "$F1" && -z "$R1" ]]; then
+			nname=`echo $nname | sed -e s/"$F1"//g`
+		fi	
+		if [ "$S1" == "true" ]; then
+			nname=`echo $nname | sed 's/[[:space:]]//g'`
+		fi
+		if [ "$P3" == "true" ]; then 
+			nname=`echo $nname | sed -e y/"$FROM"/"$TOOO"/`
+		fi
+		if [ "$P2" == "true" ]; then 
+			ext=`echo $ext | sed -e y/"$FROM"/"$TOOO"/`
+		fi	
+		if [ "$P1" == "true" ]; then
+			nname=`echo $nname | sed 's/[[:space:]]/_/g'`
+			nname=`echo $nname | sed s/'_\{2,\}'/'_'/g`
+		fi
+		if [ "$T1" == "true" ]; then
+			translit_file_name=`echo $nname | sed "y/абвгдезийклмнопрстуфхцы/abvgdezijklmnoprstufxcy/"`
+			translit_file_name=`echo $translit_file_name | sed "y/АБВГДЕЗИЙКЛМНОПРСТУФХЦЫ/ABVGDEZIJKLMNOPRSTUFXCY/"`
+			translit_file_name=${translit_file_name//ч/ch};
+			translit_file_name=${translit_file_name//Ч/CH} translit_file_name=${translit_file_name//ш/sh};
+			translit_file_name=${translit_file_name//Ш/SH} translit_file_name=${translit_file_name//ё/jo};
+			translit_file_name=${translit_file_name//Ё/JO} translit_file_name=${translit_file_name//ж/zh};
+			translit_file_name=${translit_file_name//Ж/ZH} translit_file_name=${translit_file_name//щ/sh};
+			# translit_file_name=${translit_file_name///SH\'} 
+														   translit_file_name=${translit_file_name//э/je};
+			translit_file_name=${translit_file_name//Э/JE} translit_file_name=${translit_file_name//ю/ju};
+			translit_file_name=${translit_file_name//Ю/JU} translit_file_name=${translit_file_name//я/ja};
+			translit_file_name=${translit_file_name//Я/JA} translit_file_name=${translit_file_name//ъ/};
+			translit_file_name=${translit_file_name//ъ/} translit_file_name=${translit_file_name//ь/};
+			translit_file_name=${translit_file_name//Ь/}
+			nname=$translit_file_name
+		fi		
+		if ! [ -f "$nname"."$ext" ]; then
+			mv "$x" "$nname"."$ext"
+		fi
+	fi
+done
+}
+export -f REPLACE
+	
+export PROG='
+<window title="Пакетное переименование файлов 1.0.0">
+<vbox>
+<notebook labels="Переименовать|Заменить|Помощь">
+<vbox>
+	  <hbox> 
+	  <frame Выберите каталог с файлами>
+        <hbox>
+          <entry accept="directory"><variable>DIRNAME1</variable></entry>
+          <button>
+            <input file stock="gtk-open"></input>
+            <action type="fileselect">DIRNAME1</action>
+          </button>
+        </hbox>
+	  </frame> 
+	  </hbox>
+	  <frame Новый префикс                       Текущий префикс>
+        <hbox>
+          <entry>
+            <variable>NEWNAME</variable>
+          </entry>
+          <entry>
+            <variable>CURRENTNAME</variable>
+          </entry>
+        </hbox>    
+        <text xalign="0">
+          <label>При наличии данных в поле "Текущий префикс" поле "Нумерация файлов от" из алгоритма переименования исключается. Используйте для сохранения оригинальной нумерации фотоснимков.</label>
+        </text>    
+      </frame>
+      <frame Нумерация файлов от>
+        <hbox>
+          <entry>
+            <variable>NUMBER</variable>
+            <default>1000</default>
+          </entry>
+        </hbox>        
+      </frame>
+	  <frame Путь сохранения>
+        <hbox>
+          <entry accept="directory"><variable>FOLDER</variable></entry>
+          <button>
+            <input file stock="gtk-open"></input>
+            <action type="fileselect">FOLDER</action>
+          </button>
+         </hbox>
+        <text xalign="0">
+          <label>Для пакетного переименования файлов, оставьте поле пустым, либо, укажите полный путь к другому каталогу, для сохранения в нем, переименованых копий.</label>
+        </text>
+	  </frame>
+	  <hbox>  
+		<button>
+			<label>Переименовать</label>
+			<action>RENAME</action>
+			<action>Clear:RENAME</action>
+		</button>
+		<button>
+			<label>Выход</label>
+		</button>
+	  </hbox>
+  </vbox>
+  <vbox>
+	<hbox> 
+	  <frame Выберите каталог с файлами>
+        <hbox>
+          <entry accept="directory"><variable>DIRNAME2</variable></entry>
+          <button>
+            <input file stock="gtk-open"></input>
+            <action type="fileselect">DIRNAME2</action>
+          </button>
+        </hbox>
+	  </frame> 
+	  </hbox>
+	  <frame Найти                                       Заменить>
+        <hbox>
+          <entry>
+            <variable>F1</variable>
+          </entry>
+          <entry>
+            <variable>R1</variable>
+          </entry>
+        </hbox>    
+        <text xalign="0">
+          <label>Если в поле "Заменить" отсутствует элемент замены, производится склейка.</label>
+        </text>           
+        </frame>  
+        <frame Дополнительно>
+        <checkbox>
+            <label>удалить специальные символы и знаки</label>
+            <variable>H1</variable>
+            <default>no</default>
+        </checkbox>       
+        <checkbox>
+            <label>исключить пробелы (склейка)</label>
+            <variable>S1</variable>
+            <default>no</default>
+        </checkbox>  
+        <checkbox>
+            <label>заменить пробелы на 0x5F (hex)</label>
+            <variable>P1</variable>
+            <default>no</default>
+        </checkbox>
+        <checkbox>
+            <label>нижний регистр в расширении файла</label>
+            <variable>P2</variable>
+            <default>no</default>
+        </checkbox>    
+        <checkbox>
+            <label>нижний регистр в имени файла</label>
+            <variable>P3</variable>
+            <default>no</default>
+        </checkbox>  
+        <checkbox>
+            <label>транслит</label>
+            <variable>T1</variable>
+            <default>no</default>
+        </checkbox>       
+      </frame>     
+      <hbox>  
+		<button>
+			<label>Заменить</label>
+			<action>REPLACE</action>
+			<action>Clear:REPLACE</action>
+		</button>
+		<button>
+			<label>Выход</label>
+		</button>
+	   </hbox>  
+  </vbox>  
+  <vbox>
+   <text space-fill="true">
+   <label>"   "</label>
+   </text>
+   <text space-fill="true">
+   <label>GTK 3</label>
+   </text>
+   <text space-fill="true">
+   <label>Пакетное переименование файлов</label>
+   </text>
+   <text space-fill="true">
+   <label>Batch rename files</label>
+   </text>
+   <text space-fill="true">
+   <label>версия 1.0.0</label>
+   </text>   
+   <text space-fill="true">
+   <label>"   "</label>
+   </text>    
+   <text space-fill="true">
+   <label>Скрипт предназначен для пакетного переименования</label>
+   </text>   
+   <text space-fill="true">
+   <label>графических файлов с цифровых фотокамер.</label>
+   </text>    
+   <text space-fill="true">
+   <label>Имеет ряд функций, позволяющих использование</label>
+   </text>     
+   <text space-fill="true">
+   <label>в других, отличных от заявленных выше целях.</label>
+   </text> 
+   <text space-fill="true">
+   <label>" "</label>
+   </text> 
+  </vbox>
+ </notebook>
+ </vbox>
+</window>
+'
+
+gtkdialog3 --program PROG > /dev/null
+
+
